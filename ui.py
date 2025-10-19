@@ -130,7 +130,7 @@ class SmartOrganizerApp:
         self._log(f"Starting sorting: {folder}")
         try:
             # ⚡ Use a separate "_sorted" folder to avoid recursive moves
-            dest_root = Path(folder) / "_sorted"
+            dest_root = Path(folder)
             summary = sort_directory(
                 root_dir=Path(folder),
                 dest_root=dest_root,
