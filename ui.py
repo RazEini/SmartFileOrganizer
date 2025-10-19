@@ -1,4 +1,4 @@
-# ui.py (HiDPI / Modern)
+# ui.py (HiDPI / Modern) - Updated
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from pathlib import Path
@@ -129,9 +129,11 @@ class SmartOrganizerApp:
         start = time.time()
         self._log(f"Starting sorting: {folder}")
         try:
+            # ⚡ Use a separate "_sorted" folder to avoid recursive moves
+            dest_root = Path(folder) / "_sorted"
             summary = sort_directory(
                 root_dir=Path(folder),
-                dest_root=Path(folder),
+                dest_root=dest_root,
                 preserve_structure=self.preserve_structure.get(),
                 dry_run=self.dry_run.get(),
                 include_hidden=self.include_hidden.get()

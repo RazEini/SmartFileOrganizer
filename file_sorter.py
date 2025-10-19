@@ -100,12 +100,11 @@ def sort_directory(
         # skip directories
         if p.is_dir():
             continue
-        # skip files in dest_root if dest_root is inside root_dir to avoid relocating moved files
-        if dest_root in p.parents and dest_root != root_dir:
-            # don't process files that are already in destination tree (unless dest_root == root_dir)
-            continue
         # optionally skip hidden files
         if not include_hidden and any(part.startswith(".") for part in p.parts):
+            continue
+        # skip files that are already inside a category folder
+        if any(p.is_relative_to(dest_root / category) for category in FILE_CATEGORIES.keys()):
             continue
 
         summary["total_files"] += 1
@@ -119,7 +118,6 @@ def sort_directory(
                 rel = p.relative_to(root_dir)
             except Exception:
                 rel = p.name
-            # place under category/<parent-of-file-relative-path>/
             if rel.parent == Path("."):
                 dst = category_dir / p.name
             else:
