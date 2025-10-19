@@ -29,6 +29,6 @@
 
 <br/>
 
-<h4 align= "right">
+<h4 align= "center">
   👨‍💻 Raz Eini (2025)
 </h4>
