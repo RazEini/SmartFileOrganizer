@@ -8,9 +8,32 @@ import os
 import sys
 import queue
 import json
+from logging.handlers import RotatingFileHandler
 
 from file_sorter import sort_directory, undo, redo
-from logger import setup_logger
+
+# ------------------------
+# Logger setup (integrated)
+# ------------------------
+LOG_FILE = Path("sorted_files_log.txt")
+
+def setup_logger(level=logging.INFO) -> logging.Logger:
+    logger = logging.getLogger("smart_organizer")
+    logger.setLevel(level)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(level)
+    ch.setFormatter(logging.Formatter("%(message)s"))
+
+    fh = RotatingFileHandler(str(LOG_FILE), maxBytes=5_000_000, backupCount=5, encoding="utf-8", mode='a')
+    fh.setLevel(level)
+    fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+
+    logger.handlers = []
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+    logger.propagate = False
+    return logger
 
 logger = setup_logger()
 
@@ -121,6 +144,7 @@ class SmartOrganizerApp:
         self.output = scrolledtext.ScrolledText(frm, height=20, bg="#1e1e1e", fg="#dcdcdc", font=("Consolas", 11))
         self.output.pack(fill=tk.BOTH, expand=True, pady=(4, 6))
 
+    # --- Folder browse/open ---
     def browse_folder(self):
         path = filedialog.askdirectory()
         if path:
@@ -143,6 +167,7 @@ class SmartOrganizerApp:
         except Exception as e:
             messagebox.showerror("Open folder failed", str(e))
 
+    # --- Sort logic ---
     def on_sort(self):
         folder = self.selected_dir.get()
         if not folder:
@@ -187,12 +212,10 @@ class SmartOrganizerApp:
             duration = summary.get("duration_seconds", 0.0)
             dup = summary.get("duplicate_count", 0)
             self._enqueue_log(f"✅ Done. Scanned: {total}, Moved: {moved}, Duplicates: {dup}, Time: {duration:.2f}s")
-            # show some moved items
             for src, dst, moved_flag in summary["moved_items"][:80]:
                 self._enqueue_log(f"{'MOVED' if moved_flag else '[DRY]'}: {src} → {dst}")
             if len(summary["moved_items"]) > 80:
                 self._enqueue_log(f"... and {len(summary['moved_items']) - 80} more entries")
-            # update stats
             self.root.after(0, lambda: self._update_stats(total, moved, dup))
         except Exception as e:
             logger.exception("Error during sorting")
@@ -210,6 +233,7 @@ class SmartOrganizerApp:
         self.status_label.config(text="Done ✅", foreground="green")
         self.root.after(900, lambda: self.progress_value.set(0))
 
+    # --- Logging ---
     def _enqueue_log(self, msg: str):
         timestamp = time.strftime("[%H:%M:%S]")
         self.log_queue.put(f"{timestamp} {msg}")
@@ -224,6 +248,7 @@ class SmartOrganizerApp:
             self.output.see(tk.END)
         self.root.after(200, self._process_log_queue)
 
+    # --- Undo/Redo ---
     def on_undo(self):
         folder = self.selected_dir.get()
         if not folder:
@@ -246,7 +271,6 @@ class SmartOrganizerApp:
             if result.get("removed_dirs"):
                 for d in result["removed_dirs"]:
                     self._enqueue_log(f"Removed empty dir: {d}")
-            # after undo, update stats (best effort)
             self.root.after(0, lambda: self._update_stats(0, 0, 0))
         except Exception as e:
             logger.exception("Undo error")
@@ -276,6 +300,7 @@ class SmartOrganizerApp:
             logger.exception("Redo error")
             self._enqueue_log(f"Redo failed: {e}")
 
+    # --- Misc ---
     def clear_log(self):
         self.output.delete("1.0", tk.END)
 
