@@ -1,7 +1,7 @@
 <h1 align= "right">📂 Smart File Organizer – מארגן הקבצים החכם</h1>
 
 <p>כלי לדסקטופ שמסדר קבצים לפי סוגים לתיקיות מתאימות, עם ממשק GUI וגם אפשרות להרצה דרך CLI.  
-נבנה בפייתון 3.9+ עם Tkinter בלבד, ללא צורך בהתקנות נוספות.</p>
+נבנה בפייתון 3.9+ עם Tkinter בלבד, ללא צורך בהתקנות נוספות, אך ניתן לשפר פונקציונליות עם <code>watchdog</code> (מעקב שינויים בתיקיה) ו־<code>Pillow</code> (תמיכה מתקדמת באייקונים ותמונות).</p>
 
 <hr/>
 
@@ -41,6 +41,8 @@
   <li>אפשרות סינון לפי סיומות קבצים בלבד</li>
   <li>שמירת לוג של כל הקבצים שהוזזו ב־<code>sorted_files_log.txt</code></li>
   <li>שמירת הגדרות GUI (<code>organizer_settings.json</code>)</li>
+  <li>תמיכה באייקונים ותמונות מותאמות אישית באמצעות <code>Pillow</code></li>
+  <li>מעקב שינויים בתיקיה בזמן אמת (watchdog) – אופציונלי</li>
 </ul>
 
 <hr/>
@@ -109,7 +111,8 @@
 <ul>
   <li>Python 3.9 ומעלה</li>
   <li>Tkinter (מודול מובנה)</li>
-  <li>מודולים מובנים בלבד – אין צורך בהתקנות נוספות</li>
+  <li>Pillow &mdash; להתאמה מתקדמת של אייקונים ותמונות (<code>pip install Pillow</code>)</li>
+  <li>watchdog &mdash; למעקב בזמן אמת אחר תיקיות (אופציונלי) (<code>pip install watchdog</code>)</li>
 </ul>
 
 <hr/>
