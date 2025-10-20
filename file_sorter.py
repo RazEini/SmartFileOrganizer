@@ -233,8 +233,10 @@ def undo(dest_root: Path) -> dict:
         return result
 
     last = entries[pointer]
+
+    # --- Move files back to original locations ---
     for item in reversed(last.get("items",[])):
-        src,dst = Path(item["dst"]), Path(item["src"])
+        src, dst = Path(item["dst"]), Path(item["src"])
         try:
             if src.exists():
                 ensure_dir(dst.parent)
@@ -245,15 +247,25 @@ def undo(dest_root: Path) -> dict:
         except Exception as e:
             result["errors"].append(f"Error moving {src} -> {dst}: {e}")
 
+    # --- Remove empty dirs created during this sort ---
     created_dirs = [Path(p) for p in last.get("created_dirs",[])]
     removed = _remove_empty_dirs(created_dirs)
-    result["removed_dirs"] = [str(p) for p in removed]
+    result["removed_dirs"].extend([str(p) for p in removed])
+
+    # --- Remove empty Duplicates folder if it's now empty ---
+    duplicates_root = dest_root / "Duplicates"
+    if duplicates_root.exists():
+        removed_dup = _remove_empty_dirs([duplicates_root])
+        result["removed_dirs"].extend([str(p) for p in removed_dup])
+
+    # --- Update history pointer ---
     state["pointer"] = pointer-1
     try:
         with hist_path.open("w",encoding="utf-8") as fh:
             json.dump(state, fh, ensure_ascii=False, indent=2)
     except Exception as e:
         result["errors"].append(f"Failed to update history: {e}")
+
     result["redo_available"] = True
     return result
 
@@ -272,28 +284,43 @@ def redo(dest_root: Path) -> dict:
 
     pointer = state.get("pointer",-1)
     entries = state.get("entries",[])
-    next_idx = pointer+1
-    if next_idx<0 or next_idx>=len(entries):
+    next_idx = pointer + 1
+    if next_idx < 0 or next_idx >= len(entries):
         result["errors"].append("No operation to redo.")
         return result
 
     entry = entries[next_idx]
-    for item in entry.get("items",[]):
-        src,dst = Path(item["src"]), Path(item["dst"])
+
+    # --- Move files to their sorted locations ---
+    for item in entry.get("items", []):
+        src, dst = Path(item["src"]), Path(item["dst"])
         try:
             if src.exists():
                 ensure_dir(dst.parent)
                 shutil.move(str(src), str(dst))
                 result["redone"] += 1
             else:
-                result["errors"].append(f"Redo source missing: {src}")
+                # If src doesn't exist (was already moved), maybe it's in dst
+                if not dst.exists():
+                    result["errors"].append(f"Redo source missing: {src}")
         except Exception as e:
             result["errors"].append(f"Error moving {src} -> {dst}: {e}")
+
+    # --- Ensure all created dirs exist, including Duplicates ---
+    created_dirs = [Path(p) for p in entry.get("created_dirs", [])]
+    for d in created_dirs:
+        ensure_dir(d)
+
+    duplicates_root = dest_root / "Duplicates"
+    if duplicates_root.exists():
+        ensure_dir(duplicates_root)
+
+    result["created_dirs"] = [str(d) for d in created_dirs]
     state["pointer"] = next_idx
     try:
-        with hist_path.open("w",encoding="utf-8") as fh:
+        with hist_path.open("w", encoding="utf-8") as fh:
             json.dump(state, fh, ensure_ascii=False, indent=2)
     except Exception as e:
         result["errors"].append(f"Failed to update history: {e}")
-    result["created_dirs"] = entry.get("created_dirs",[])
+
     return result
