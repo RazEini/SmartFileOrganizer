@@ -1,4 +1,3 @@
-# ui.py (HiDPI / Modern) - Updated
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from pathlib import Path
@@ -7,42 +6,54 @@ import time
 import logging
 import os
 import sys
+import queue
+import json
 
-from file_sorter import sort_directory
+from file_sorter import sort_directory, undo, redo
 from logger import setup_logger
 
 logger = setup_logger()
+
+SETTINGS_FILE = Path("organizer_settings.json")
 
 # ------------------------
 # DPI Awareness for Windows
 # ------------------------
 try:
     import ctypes
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)  # 1=System DPI aware
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
 except Exception:
-    pass  # Non-Windows systems ignore
+    pass
 
 class SmartOrganizerApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Smart File Organizer")
-        self.root.geometry("800x550")
+        self.root.geometry("980x700")
         self.root.configure(bg="#f5f7fa")
 
-        # ------------------------
-        # Global scaling for HiDPI
-        # ------------------------
-        self.root.tk.call('tk', 'scaling', 1.5)
+        try:
+            self.root.tk.call('tk', 'scaling', 1.5)
+        except Exception:
+            pass
 
-        # ------------------------
         # Variables
-        # ------------------------
         self.selected_dir = tk.StringVar()
         self.preserve_structure = tk.BooleanVar(value=True)
         self.dry_run = tk.BooleanVar(value=False)
         self.include_hidden = tk.BooleanVar(value=False)
+        self.compute_duplicates = tk.BooleanVar(value=False)
+        self.min_size_kb = tk.IntVar(value=0)
+        self.max_size_kb = tk.IntVar(value=0)
+        self.exclude_patterns = tk.StringVar(value="")
+        self.progress_value = tk.IntVar(value=0)
+        self.total_files = 0
+
+        self.log_queue = queue.Queue()
 
         self._build_ui()
+        self._load_settings()
+        self.root.after(200, self._process_log_queue)
 
     def _build_ui(self):
         style = ttk.Style()
@@ -51,47 +62,64 @@ class SmartOrganizerApp:
         style.configure("TButton", font=("Segoe UI", 12, "bold"), padding=6)
         style.configure("TCheckbutton", background="#f5f7fa", font=("Segoe UI", 11))
 
-        frm = ttk.Frame(self.root, padding=15)
+        frm = ttk.Frame(self.root, padding=12)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        # Title
-        title = ttk.Label(frm, text="🧠 Smart File Organizer", font=("Segoe UI", 18, "bold"))
-        title.pack(pady=(0, 10))
+        title = ttk.Label(frm, text="🧠 Smart File Organizer", font=("Segoe UI", 20, "bold"))
+        title.pack(pady=(0, 8))
 
-        # Folder selection
         dir_frame = ttk.Frame(frm)
-        dir_frame.pack(fill=tk.X, pady=5)
+        dir_frame.pack(fill=tk.X, pady=4)
         ttk.Label(dir_frame, text="Target Folder:").pack(side=tk.LEFT)
         self.dir_entry = ttk.Entry(dir_frame, textvariable=self.selected_dir, font=("Segoe UI", 12))
-        self.dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
         ttk.Button(dir_frame, text="Browse...", command=self.browse_folder).pack(side=tk.LEFT)
 
-        # Options
         opts_frame = ttk.Frame(frm)
-        opts_frame.pack(fill=tk.X, pady=10)
-        ttk.Checkbutton(opts_frame, text="Preserve folder structure", variable=self.preserve_structure).pack(side=tk.LEFT, padx=5)
-        ttk.Checkbutton(opts_frame, text="Dry run (no changes)", variable=self.dry_run).pack(side=tk.LEFT, padx=5)
-        ttk.Checkbutton(opts_frame, text="Include hidden files", variable=self.include_hidden).pack(side=tk.LEFT, padx=5)
+        opts_frame.pack(fill=tk.X, pady=6)
 
-        # Buttons
+        left = ttk.Frame(opts_frame)
+        left.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Checkbutton(left, text="Preserve folder structure", variable=self.preserve_structure).pack(anchor=tk.W, padx=2, pady=2)
+        ttk.Checkbutton(left, text="Dry run (no changes)", variable=self.dry_run).pack(anchor=tk.W, padx=2, pady=2)
+        ttk.Checkbutton(left, text="Include hidden files", variable=self.include_hidden).pack(anchor=tk.W, padx=2, pady=2)
+        ttk.Checkbutton(left, text="Detect duplicates (hash)", variable=self.compute_duplicates).pack(anchor=tk.W, padx=2, pady=2)
+
+        right = ttk.Frame(opts_frame)
+        right.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(20,0))
+        size_frame = ttk.Frame(right)
+        size_frame.pack(fill=tk.X)
+        ttk.Label(size_frame, text="Min size (KB):").pack(side=tk.LEFT)
+        ttk.Entry(size_frame, width=8, textvariable=self.min_size_kb).pack(side=tk.LEFT, padx=4)
+        ttk.Label(size_frame, text="Max size (KB, 0=no limit):").pack(side=tk.LEFT, padx=(10,0))
+        ttk.Entry(size_frame, width=8, textvariable=self.max_size_kb).pack(side=tk.LEFT, padx=4)
+
+        ttk.Label(right, text="Exclude patterns (comma-separated globs):").pack(anchor=tk.W, pady=(6,0))
+        ttk.Entry(right, textvariable=self.exclude_patterns).pack(fill=tk.X, pady=2)
+
         btn_frame = ttk.Frame(frm)
-        btn_frame.pack(fill=tk.X, pady=10)
+        btn_frame.pack(fill=tk.X, pady=8)
         self.sort_btn = ttk.Button(btn_frame, text="▶ Sort Files", command=self.on_sort)
         self.sort_btn.pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="📂 Open Folder", command=self.open_folder).pack(side=tk.LEFT)
+        ttk.Button(btn_frame, text="⤺ Undo", command=self.on_undo).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btn_frame, text="↻ Redo", command=self.on_redo).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btn_frame, text="Clear Log", command=self.clear_log).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btn_frame, text="Save Settings", command=self._save_settings).pack(side=tk.RIGHT)
 
-        # Progress Bar
-        self.progress = ttk.Progressbar(frm, mode="indeterminate")
-        self.progress.pack(fill=tk.X, pady=(5, 10))
-
-        # Output log
-        ttk.Label(frm, text="Activity Log:").pack(anchor=tk.W)
-        self.output = scrolledtext.ScrolledText(frm, height=18, bg="#1e1e1e", fg="#dcdcdc", font=("Consolas", 11))
-        self.output.pack(fill=tk.BOTH, expand=True, pady=(5, 10))
-
-        # Status bar
+        # Progress and stats
+        self.progress = ttk.Progressbar(frm, mode="determinate", variable=self.progress_value, maximum=100)
+        self.progress.pack(fill=tk.X, pady=(8, 6))
         self.status_label = ttk.Label(frm, text="Ready", anchor="w", font=("Segoe UI", 10, "italic"))
-        self.status_label.pack(fill=tk.X, pady=(2, 0))
+        self.status_label.pack(fill=tk.X)
+
+        stats_frame = ttk.Frame(frm)
+        stats_frame.pack(fill=tk.X, pady=(4, 8))
+        self.stats_label = ttk.Label(stats_frame, text="Files: 0 | Moved: 0 | Duplicates: 0")
+        self.stats_label.pack(side=tk.LEFT)
+
+        self.output = scrolledtext.ScrolledText(frm, height=20, bg="#1e1e1e", fg="#dcdcdc", font=("Consolas", 11))
+        self.output.pack(fill=tk.BOTH, expand=True, pady=(4, 6))
 
     def browse_folder(self):
         path = filedialog.askdirectory()
@@ -104,13 +132,16 @@ class SmartOrganizerApp:
             messagebox.showwarning("No folder", "Please select a folder first.")
             return
         try:
-            os.startfile(path)
-        except Exception:
-            import subprocess
-            if sys.platform == "darwin":
+            if sys.platform.startswith("win"):
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                import subprocess
                 subprocess.Popen(["open", path])
             else:
+                import subprocess
                 subprocess.Popen(["xdg-open", path])
+        except Exception as e:
+            messagebox.showerror("Open folder failed", str(e))
 
     def on_sort(self):
         folder = self.selected_dir.get()
@@ -119,45 +150,170 @@ class SmartOrganizerApp:
             return
 
         self.sort_btn.config(state=tk.DISABLED)
-        self.status_label.config(text="Sorting...", foreground="#0066cc")
-        self.progress.start(10)
+        self.status_label.config(text="Scanning files...", foreground="#0066cc")
+        self.progress.config(mode="determinate")
+        self.progress_value.set(0)
 
         thread = threading.Thread(target=self._sort_worker, args=(folder,), daemon=True)
         thread.start()
 
     def _sort_worker(self, folder):
-        start = time.time()
-        self._log(f"Starting sorting: {folder}")
+        dest_root = Path(folder)
+        exclude = [p.strip() for p in self.exclude_patterns.get().split(",") if p.strip()]
+        min_size = max(0, self.min_size_kb.get()) * 1024
+        max_kb = self.max_size_kb.get()
+        max_size = None if max_kb == 0 else max_kb * 1024
+
+        self._enqueue_log(f"Starting sorting: {folder}")
+        def progress_cb(processed, total):
+            pct = int((processed / total) * 100) if total else 100
+            self.root.after(0, lambda: self._update_progress(pct))
+
         try:
-            # ⚡ Use a separate "_sorted" folder to avoid recursive moves
-            dest_root = Path(folder)
             summary = sort_directory(
                 root_dir=Path(folder),
                 dest_root=dest_root,
                 preserve_structure=self.preserve_structure.get(),
                 dry_run=self.dry_run.get(),
-                include_hidden=self.include_hidden.get()
+                include_hidden=self.include_hidden.get(),
+                exclude_patterns=exclude,
+                min_size_bytes=min_size,
+                max_size_bytes=max_size,
+                compute_duplicates=self.compute_duplicates.get(),
+                progress_callback=progress_cb
             )
             moved = summary["moved_count"]
             total = summary["total_files"]
-            elapsed = time.time() - start
-            self._log(f"✅ Done. Total files: {total}, Moved: {moved}, Time: {elapsed:.2f}s")
-            for src, dst, moved_flag in summary["moved_items"][:30]:
-                self._log(f"{'MOVED' if moved_flag else '[DRY]'}: {src} → {dst}")
+            duration = summary.get("duration_seconds", 0.0)
+            dup = summary.get("duplicate_count", 0)
+            self._enqueue_log(f"✅ Done. Scanned: {total}, Moved: {moved}, Duplicates: {dup}, Time: {duration:.2f}s")
+            # show some moved items
+            for src, dst, moved_flag in summary["moved_items"][:80]:
+                self._enqueue_log(f"{'MOVED' if moved_flag else '[DRY]'}: {src} → {dst}")
+            if len(summary["moved_items"]) > 80:
+                self._enqueue_log(f"... and {len(summary['moved_items']) - 80} more entries")
+            # update stats
+            self.root.after(0, lambda: self._update_stats(total, moved, dup))
         except Exception as e:
             logger.exception("Error during sorting")
-            self._log(f"❌ Error: {e}")
+            self._enqueue_log(f"❌ Error: {e}")
         finally:
             self.root.after(0, self._finish_sort)
 
+    def _update_progress(self, pct: int):
+        self.progress_value.set(pct)
+        self.status_label.config(text=f"Progress: {pct}%")
+
     def _finish_sort(self):
-        self.progress.stop()
+        self.progress_value.set(100)
         self.sort_btn.config(state=tk.NORMAL)
         self.status_label.config(text="Done ✅", foreground="green")
+        self.root.after(900, lambda: self.progress_value.set(0))
 
-    def _log(self, msg: str):
+    def _enqueue_log(self, msg: str):
         timestamp = time.strftime("[%H:%M:%S]")
-        line = f"{timestamp} {msg}\n"
-        self.output.insert(tk.END, line)
-        self.output.see(tk.END)
-        logger.info(msg)
+        self.log_queue.put(f"{timestamp} {msg}")
+
+    def _process_log_queue(self):
+        while True:
+            try:
+                line = self.log_queue.get_nowait()
+            except queue.Empty:
+                break
+            self.output.insert(tk.END, line + "\n")
+            self.output.see(tk.END)
+        self.root.after(200, self._process_log_queue)
+
+    def on_undo(self):
+        folder = self.selected_dir.get()
+        if not folder:
+            messagebox.showwarning("No folder", "Please select a folder first.")
+            return
+        confirm = messagebox.askyesno("Undo Last", "Are you sure you want to undo the last sort operation?")
+        if not confirm:
+            return
+        self._enqueue_log("Attempting undo of last operation...")
+        thread = threading.Thread(target=self._undo_worker, args=(Path(folder),), daemon=True)
+        thread.start()
+
+    def _undo_worker(self, dest_root: Path):
+        try:
+            result = undo(dest_root)
+            if result.get("errors"):
+                for e in result["errors"]:
+                    self._enqueue_log(f"UNDO ERROR: {e}")
+            self._enqueue_log(f"Undone moves: {result.get('undone', 0)}")
+            if result.get("removed_dirs"):
+                for d in result["removed_dirs"]:
+                    self._enqueue_log(f"Removed empty dir: {d}")
+            # after undo, update stats (best effort)
+            self.root.after(0, lambda: self._update_stats(0, 0, 0))
+        except Exception as e:
+            logger.exception("Undo error")
+            self._enqueue_log(f"Undo failed: {e}")
+
+    def on_redo(self):
+        folder = self.selected_dir.get()
+        if not folder:
+            messagebox.showwarning("No folder", "Please select a folder first.")
+            return
+        self._enqueue_log("Attempting redo of next operation...")
+        thread = threading.Thread(target=self._redo_worker, args=(Path(folder),), daemon=True)
+        thread.start()
+
+    def _redo_worker(self, dest_root: Path):
+        try:
+            result = redo(dest_root)
+            if result.get("errors"):
+                for e in result["errors"]:
+                    self._enqueue_log(f"REDO ERROR: {e}")
+            self._enqueue_log(f"Redone moves: {result.get('redone', 0)}")
+            if result.get("created_dirs"):
+                for d in result["created_dirs"]:
+                    self._enqueue_log(f"Re-created dir: {d}")
+            self.root.after(0, lambda: self._update_stats(0, 0, 0))
+        except Exception as e:
+            logger.exception("Redo error")
+            self._enqueue_log(f"Redo failed: {e}")
+
+    def clear_log(self):
+        self.output.delete("1.0", tk.END)
+
+    def _update_stats(self, total: int, moved: int, dup: int):
+        self.stats_label.config(text=f"Files: {total} | Moved: {moved} | Duplicates: {dup}")
+
+    def _save_settings(self):
+        data = {
+            "last_folder": self.selected_dir.get(),
+            "preserve_structure": self.preserve_structure.get(),
+            "dry_run": self.dry_run.get(),
+            "include_hidden": self.include_hidden.get(),
+            "compute_duplicates": self.compute_duplicates.get(),
+            "min_size_kb": self.min_size_kb.get(),
+            "max_size_kb": self.max_size_kb.get(),
+            "exclude_patterns": self.exclude_patterns.get()
+        }
+        try:
+            with SETTINGS_FILE.open("w", encoding="utf-8") as fh:
+                json.dump(data, fh, ensure_ascii=False, indent=2)
+            self._enqueue_log("Settings saved.")
+        except Exception as e:
+            self._enqueue_log(f"Failed to save settings: {e}")
+
+    def _load_settings(self):
+        if not SETTINGS_FILE.exists():
+            return
+        try:
+            with SETTINGS_FILE.open("r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            self.selected_dir.set(data.get("last_folder", ""))
+            self.preserve_structure.set(data.get("preserve_structure", True))
+            self.dry_run.set(data.get("dry_run", False))
+            self.include_hidden.set(data.get("include_hidden", False))
+            self.compute_duplicates.set(data.get("compute_duplicates", False))
+            self.min_size_kb.set(data.get("min_size_kb", 0))
+            self.max_size_kb.set(data.get("max_size_kb", 0))
+            self.exclude_patterns.set(data.get("exclude_patterns", ""))
+            self._enqueue_log("Settings loaded.")
+        except Exception as e:
+            self._enqueue_log(f"Failed to load settings: {e}")
