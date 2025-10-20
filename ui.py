@@ -66,9 +66,7 @@ class SmartOrganizerApp:
         self.dry_run = tk.BooleanVar(value=False)
         self.include_hidden = tk.BooleanVar(value=False)
         self.compute_duplicates = tk.BooleanVar(value=False)
-        self.min_size_kb = tk.IntVar(value=0)
-        self.max_size_kb = tk.IntVar(value=0)
-        self.exclude_patterns = tk.StringVar(value="")
+        self.include_suffixes = tk.StringVar(value="")  # החדש
         self.progress_value = tk.IntVar(value=0)
         self.total_files = 0
 
@@ -110,15 +108,8 @@ class SmartOrganizerApp:
 
         right = ttk.Frame(opts_frame)
         right.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(20,0))
-        size_frame = ttk.Frame(right)
-        size_frame.pack(fill=tk.X)
-        ttk.Label(size_frame, text="Min size (KB):").pack(side=tk.LEFT)
-        ttk.Entry(size_frame, width=8, textvariable=self.min_size_kb).pack(side=tk.LEFT, padx=4)
-        ttk.Label(size_frame, text="Max size (KB, 0=no limit):").pack(side=tk.LEFT, padx=(10,0))
-        ttk.Entry(size_frame, width=8, textvariable=self.max_size_kb).pack(side=tk.LEFT, padx=4)
-
-        ttk.Label(right, text="Exclude patterns (comma-separated globs):").pack(anchor=tk.W, pady=(6,0))
-        ttk.Entry(right, textvariable=self.exclude_patterns).pack(fill=tk.X, pady=2)
+        ttk.Label(right, text="Include only file types (e.g. .png,.jpg,.pdf):").pack(anchor=tk.W, pady=(6,0))
+        ttk.Entry(right, textvariable=self.include_suffixes).pack(fill=tk.X, pady=2)
 
         btn_frame = ttk.Frame(frm)
         btn_frame.pack(fill=tk.X, pady=8)
@@ -184,12 +175,10 @@ class SmartOrganizerApp:
 
     def _sort_worker(self, folder):
         dest_root = Path(folder)
-        exclude = [p.strip() for p in self.exclude_patterns.get().split(",") if p.strip()]
-        min_size = max(0, self.min_size_kb.get()) * 1024
-        max_kb = self.max_size_kb.get()
-        max_size = None if max_kb == 0 else max_kb * 1024
+        suffix_filter = [s.strip().lower() for s in self.include_suffixes.get().split(",") if s.strip()]
 
         self._enqueue_log(f"Starting sorting: {folder}")
+
         def progress_cb(processed, total):
             pct = int((processed / total) * 100) if total else 100
             self.root.after(0, lambda: self._update_progress(pct))
@@ -201,11 +190,12 @@ class SmartOrganizerApp:
                 preserve_structure=self.preserve_structure.get(),
                 dry_run=self.dry_run.get(),
                 include_hidden=self.include_hidden.get(),
-                exclude_patterns=exclude,
-                min_size_bytes=min_size,
-                max_size_bytes=max_size,
+                exclude_patterns=None,  # לא נדרש
+                min_size_bytes=0,
+                max_size_bytes=None,
                 compute_duplicates=self.compute_duplicates.get(),
-                progress_callback=progress_cb
+                progress_callback=progress_cb,
+                suffix_filter=suffix_filter  # חדש
             )
             moved = summary["moved_count"]
             total = summary["total_files"]
@@ -314,9 +304,7 @@ class SmartOrganizerApp:
             "dry_run": self.dry_run.get(),
             "include_hidden": self.include_hidden.get(),
             "compute_duplicates": self.compute_duplicates.get(),
-            "min_size_kb": self.min_size_kb.get(),
-            "max_size_kb": self.max_size_kb.get(),
-            "exclude_patterns": self.exclude_patterns.get()
+            "include_suffixes": self.include_suffixes.get()  # החדש
         }
         try:
             with SETTINGS_FILE.open("w", encoding="utf-8") as fh:
@@ -336,9 +324,7 @@ class SmartOrganizerApp:
             self.dry_run.set(data.get("dry_run", False))
             self.include_hidden.set(data.get("include_hidden", False))
             self.compute_duplicates.set(data.get("compute_duplicates", False))
-            self.min_size_kb.set(data.get("min_size_kb", 0))
-            self.max_size_kb.set(data.get("max_size_kb", 0))
-            self.exclude_patterns.set(data.get("exclude_patterns", ""))
+            self.include_suffixes.set(data.get("include_suffixes", ""))  # החדש
             self._enqueue_log("Settings loaded.")
         except Exception as e:
             self._enqueue_log(f"Failed to load settings: {e}")

@@ -9,14 +9,14 @@ from typing import Optional, List, Callable, Dict, Tuple
 logger = logging.getLogger("smart_organizer")
 
 FILE_CATEGORIES: Dict[str, List[str]] = {
-    "Images": [".jpg",".jpeg",".png",".gif",".bmp",".tiff",".webp",".heic"],
-    "Documents": [".pdf",".docx",".doc",".txt",".odt",".rtf"],
-    "Code": [".py",".java",".cpp",".c",".h",".js",".html",".css",".ts",".go",".rb"],
-    "Videos": [".mp4",".mkv",".avi",".mov",".wmv",".flv"],
-    "Audio": [".mp3",".wav",".aac",".ogg",".flac"],
-    "Archives": [".zip",".rar",".tar",".gz",".7z"],
-    "Spreadsheets": [".xls",".xlsx",".csv"],
-    "Presentations": [".ppt",".pptx"]
+    "Images": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".heic"],
+    "Documents": [".pdf", ".docx", ".doc", ".txt", ".odt", ".rtf"],
+    "Code": [".py", ".java", ".cpp", ".c", ".h", ".js", ".html", ".css", ".ts", ".go", ".rb"],
+    "Videos": [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv"],
+    "Audio": [".mp3", ".wav", ".aac", ".ogg", ".flac"],
+    "Archives": [".zip", ".rar", ".tar", ".gz", ".7z"],
+    "Spreadsheets": [".xls", ".xlsx", ".csv"],
+    "Presentations": [".ppt", ".pptx"]
 }
 UNKNOWN_CATEGORY = "Others"
 HISTORY_FILE = ".sort_history.json"
@@ -100,12 +100,15 @@ def sort_directory(
     min_size_bytes: int = 0,
     max_size_bytes: Optional[int] = None,
     compute_duplicates: bool = False,
-    progress_callback: Optional[Callable[[int,int],None]] = None
+    progress_callback: Optional[Callable[[int,int],None]] = None,
+    suffix_filter: Optional[List[str]] = None  # <-- אפשרות סינון לפי סיומות
 ) -> dict:
     if dest_root is None:
         dest_root = root_dir
     root_dir, dest_root = root_dir.resolve(), dest_root.resolve()
-    summary = {"root": str(root_dir),"dest_root": str(dest_root),"total_files":0,"moved_count":0,"moved_items":[],"duplicate_count":0,"duration_seconds":0.0,"created_dirs":[]}
+    summary = {"root": str(root_dir), "dest_root": str(dest_root), "total_files":0,
+               "moved_count":0, "moved_items":[], "duplicate_count":0,
+               "duration_seconds":0.0, "created_dirs":[]}
     start_time = time.time()
     files: List[Path] = []
     hashes = {}
@@ -113,6 +116,11 @@ def sort_directory(
     for p in root_dir.rglob("*"):
         if p.is_dir() or _should_skip(p, root_dir, dest_root, include_hidden, exclude_patterns):
             continue
+
+        # סינון לפי סיומות אם נבחר
+        if suffix_filter and p.suffix.lower() not in [s.lower() for s in suffix_filter]:
+            continue
+
         try:
             size = p.stat().st_size
         except Exception:
@@ -133,11 +141,11 @@ def sort_directory(
                 continue
             size_map.setdefault(size, []).append(p)
         for group in size_map.values():
-            if len(group)>1:
+            if len(group) > 1:
                 for p in group:
                     h = compute_file_hash(p)
                     if h:
-                        hashes.setdefault(h,[]).append(p)
+                        hashes.setdefault(h, []).append(p)
 
     processed = 0
     created_dirs_set = set()
@@ -154,9 +162,10 @@ def sort_directory(
                 dst = category_dir / p.name
 
         moved = False
+        h = None
         if compute_duplicates:
             h = compute_file_hash(p)
-            if h and len(hashes.get(h,[]))>1:
+            if h and len(hashes.get(h, [])) > 1:
                 duplicates_dir = dest_root / "Duplicates" / category
                 if preserve_structure:
                     try:
@@ -176,7 +185,7 @@ def sort_directory(
         summary["moved_items"].append((str(p), str(final_dst), moved))
         if moved:
             summary["moved_count"] += 1
-            if compute_duplicates and h in hashes and len(hashes[h])>1:
+            if compute_duplicates and h in hashes and len(hashes[h]) > 1:
                 summary["duplicate_count"] += 1
 
         processed += 1
@@ -187,32 +196,35 @@ def sort_directory(
                 pass
 
     summary["created_dirs"] = sorted(list(created_dirs_set))
-    summary["duration_seconds"] = time.time()-start_time
+    summary["duration_seconds"] = time.time() - start_time
 
     # --- save history ---
-    history_entry = {"timestamp":time.time(),"root":str(root_dir),"dest_root":str(dest_root),"items":[{"src":s,"dst":d,"moved":m} for s,d,m in summary["moved_items"]],"created_dirs":summary["created_dirs"]}
+    history_entry = {"timestamp":time.time(),"root":str(root_dir),"dest_root":str(dest_root),
+                     "items":[{"src":s,"dst":d,"moved":m} for s,d,m in summary["moved_items"]],
+                     "created_dirs":summary["created_dirs"]}
     try:
         hist_path = dest_root / HISTORY_FILE
         existing = {"pointer":-1,"entries":[]}
         if hist_path.exists():
             try:
-                with hist_path.open("r",encoding="utf-8") as fh:
+                with hist_path.open("r", encoding="utf-8") as fh:
                     existing = json.load(fh)
             except Exception:
                 existing = {"pointer":-1,"entries":[]}
-        pointer = existing.get("pointer",-1)
-        entries = existing.get("entries",[])
+        pointer = existing.get("pointer", -1)
+        entries = existing.get("entries", [])
         entries = entries[:pointer+1] if pointer+1 <= len(entries) else entries
         entries.append(history_entry)
         pointer = len(entries)-1
-        new_hist = {"pointer":pointer,"entries":entries}
+        new_hist = {"pointer": pointer, "entries": entries}
         if not dry_run:
-            with hist_path.open("w",encoding="utf-8") as fh:
+            with hist_path.open("w", encoding="utf-8") as fh:
                 json.dump(new_hist, fh, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.debug("Failed to write history: %s", e)
     return summary
 
+# --- Undo / Redo functions נשארו ללא שינוי ---
 def undo(dest_root: Path) -> dict:
     hist_path = dest_root / HISTORY_FILE
     result = {"undone":0,"errors":[],"removed_dirs":[],"redo_available":False}
@@ -300,7 +312,6 @@ def redo(dest_root: Path) -> dict:
                 shutil.move(str(src), str(dst))
                 result["redone"] += 1
             else:
-                # If src doesn't exist (was already moved), maybe it's in dst
                 if not dst.exists():
                     result["errors"].append(f"Redo source missing: {src}")
         except Exception as e:
