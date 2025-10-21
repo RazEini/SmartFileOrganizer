@@ -17,31 +17,14 @@ from file_sorter import sort_directory, undo, redo
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-class ToolTip:
-    def __init__(self, widget, text):
-        self.widget = widget
-        self.text = text
-        self.tip_window = None
-        widget.bind("<Enter>", self.show_tip)
-        widget.bind("<Leave>", self.hide_tip)
-
-    def show_tip(self, event=None):
-        if self.tip_window or not self.text:
-            return
-        x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
-        self.tip_window = tw = tk.Toplevel(self.widget)
-        tw.wm_overrideredirect(True)  # חלון ללא גבולות
-        tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                         font=("Segoe UI", 10))
-        label.pack(ipadx=4, ipady=2)
-
-    def hide_tip(self, event=None):
-        if self.tip_window:
-            self.tip_window.destroy()
-            self.tip_window = None
+# modern theme
+try:
+    import ttkbootstrap as tb
+    from ttkbootstrap import Style, Window
+except Exception:
+    tb = None
+    Style = None
+    Window = None
 
 # ------------------------ Logger ------------------------
 LOG_FILE = Path("sorted_files_log.txt")
@@ -147,19 +130,51 @@ class FolderChangeHandler(FileSystemEventHandler):
     def on_any_event(self, event):
         self.callback()
 
+# ------------------------ Tooltip ------------------------
+class ToolTip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        widget.bind("<Enter>", self.show_tip)
+        widget.bind("<Leave>", self.hide_tip)
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)  # חלון ללא גבולות
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                         font=("Segoe UI", 10))
+        label.pack(ipadx=4, ipady=2)
+
+    def hide_tip(self, event=None):
+        if self.tip_window:
+            self.tip_window.destroy()
+            self.tip_window = None
+
 # ------------------------ App ------------------------
 class SmartOrganizerApp:
     THUMB_SIZE = (48,48)
 
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root):
         self.root = root
         self.root.title("Smart File Organizer")
         self.root.geometry("980x800")
-        self.root.configure(bg="#f5f7fa")
-        try:
-            self.root.tk.call('tk', 'scaling', 1.5)
-        except Exception:
-            pass
+
+        # אם יש ttkbootstrap - נשתמש ב-style המתקדם, אחרת ב-ttk רגיל
+        if tb:
+            self.style = Style()
+        else:
+            self.style = ttk.Style()
+
+        # Default theme name (ttkbootstrap themes: flatly=light, cyborg=dark)
+        self.current_theme = "flatly"
+        self._load_initial_theme()
 
         # Variables
         self.selected_dir = tk.StringVar()
@@ -176,24 +191,74 @@ class SmartOrganizerApp:
         self.observer = None
 
         self._build_ui()
-        self._load_settings()
+        self._load_settings()  # this will override theme if stored
         self.root.after(200, self._process_log_queue)
         # התצוגה תתרענן אוטומטית כשמשנים גודל חלון
         self.canvas.bind("<Configure>", lambda e: self._on_canvas_resize())
 
+    # ------------------ Theme ------------------
+    def _load_initial_theme(self):
+        # אם ttkbootstrap קיים - נחשוב על ערכת ברירת מחדל
+        if tb:
+            try:
+                # אפשר לשים ערכת ברירת מחדל שאינה תלוית מערכת
+                self.style.theme_use(self.current_theme)
+            except Exception:
+                pass
+
+    def toggle_theme(self):
+        # החלפה בין light/dark
+        light = "flatly"
+        dark = "cyborg"
+        new = dark if self.current_theme == light else light
+        try:
+            if hasattr(self.style, "theme_use"):
+                self.style.theme_use(new)
+            self.current_theme = new
+            self._apply_theme_adjustments()
+            # שמור את ההגדרה מייד
+            self._save_settings(auto=True)
+        except Exception as e:
+            logger.exception("Failed to toggle theme")
+            messagebox.showerror("Theme Error", f"Could not change theme: {e}")
+
+    def _apply_theme_adjustments(self):
+        """כאן עושים התאמות ידניות של צבעי וידג'טים שלא משתנים אוטומטית"""
+        # סגנון של תיבת הלוג (ScrolledText) - נבחר צבעים בהתאם לערכה
+        if self.current_theme in ("cyborg",):
+            # dark tweaks
+            try:
+                self.output.config(bg="#0f1720", fg="#e6eef5", insertbackground="#ffffff")
+                self.canvas.config(bg="#0b1220")
+            except Exception:
+                pass
+        else:
+            # light tweaks
+            try:
+                self.output.config(bg="#1e1e1e", fg="#dcdcdc", insertbackground="#000000")
+                self.canvas.config(bg="#ffffff")
+            except Exception:
+                pass
+
     # ------------------ UI ------------------
     def _build_ui(self):
-        style = ttk.Style()
-        style.configure("TFrame", background="#f5f7fa")
-        style.configure("TLabel", background="#f5f7fa", font=("Segoe UI", 12))
-        style.configure("TButton", font=("Segoe UI", 12, "bold"), padding=6)
-        style.configure("TCheckbutton", background="#f5f7fa", font=("Segoe UI", 11))
-
-        frm = ttk.Frame(self.root, padding=12)
+        # עיצוב כללי
+        if tb:
+            # אם יש ttkbootstrap - ניתן להשתמש ב-bootstrap styles
+            frm = tb.Frame(self.root, padding=12)
+        else:
+            frm = ttk.Frame(self.root, padding=12)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        title = ttk.Label(frm, text="🧠 Smart File Organizer", font=("Segoe UI", 20, "bold"))
-        title.pack(pady=(0,8))
+        # Header עם כפתור Toggle
+        header = ttk.Frame(frm)
+        header.pack(fill=tk.X, pady=(0,8))
+        title = ttk.Label(header, text="🧠 Smart File Organizer", font=("Segoe UI", 20, "bold"))
+        title.pack(side=tk.LEFT)
+
+        # Theme toggle button (moon/sun)
+        self.theme_btn = ttk.Button(header, text="🌗 Toggle Theme", command=self.toggle_theme)
+        self.theme_btn.pack(side=tk.RIGHT)
 
         # Directory
         dir_frame = ttk.Frame(frm)
@@ -245,7 +310,7 @@ class SmartOrganizerApp:
         # Preview canvas
         self.preview_frame = ttk.Frame(frm)
         self.preview_frame.pack(fill=tk.BOTH, expand=True)
-        self.canvas = tk.Canvas(self.preview_frame, bg="#ffffff")
+        self.canvas = tk.Canvas(self.preview_frame, bg="#ffffff", highlightthickness=0)
         self.scrollbar = ttk.Scrollbar(self.preview_frame, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -253,6 +318,9 @@ class SmartOrganizerApp:
         self.inner_frame = ttk.Frame(self.canvas)
         self.canvas_window = self.canvas.create_window((0,0), window=self.inner_frame, anchor="nw", width=self.canvas.winfo_width())
         self.canvas.bind("<Configure>", self._on_canvas_resize)
+
+        # apply small theme tweaks
+        self._apply_theme_adjustments()
 
     def _schedule_refresh(self):
         # אם כבר מתוזמן רענון קודם, בטל אותו
@@ -379,6 +447,10 @@ class SmartOrganizerApp:
             name_lbl = ttk.Label(frame, text=name, wraplength=cell_size-10, justify="center")
             name_lbl.pack(side=tk.BOTTOM, pady=2)
 
+            # hover effect (חוצה בין סגנונות קל)
+            frame.bind("<Enter>", lambda e, f=frame: f.configure(relief=tk.SOLID, borderwidth=2))
+            frame.bind("<Leave>", lambda e, f=frame: f.configure(relief=tk.RIDGE, borderwidth=1))
+
             self.preview_images.append(thumb)
 
         # הגדרת משקל לכל עמודה כדי למלא את השורה
@@ -388,7 +460,6 @@ class SmartOrganizerApp:
         # עדכון אזור הגלילה
         self.canvas.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
 
     def _on_canvas_resize(self, event=None):
         """מתאים את רוחב ה-inner_frame לגודל הקנבס ומרענן"""
@@ -403,7 +474,7 @@ class SmartOrganizerApp:
                 self.root.after_cancel(self._resize_after_id)
             except:
                 pass
-            
+
         # הפעלת טיימר חדש לעדכון
         self._resize_after_id = self.root.after(300, self.refresh_preview)
 
@@ -416,7 +487,7 @@ class SmartOrganizerApp:
         folder = self.selected_dir.get()
         if not folder:
             return
-        
+
         event_handler = FolderChangeHandler(lambda: self._schedule_refresh())
         self.observer = Observer()
         self.observer.schedule(event_handler, folder, recursive=False)
@@ -498,19 +569,21 @@ class SmartOrganizerApp:
     def _update_stats(self,total,moved,dup):
         self.stats_label.config(text=f"Files: {total} | Moved: {moved} | Duplicates: {dup}")
 
-    def _save_settings(self):
+    def _save_settings(self, auto=False):
         data = {
             "last_folder": self.selected_dir.get(),
             "preserve_structure": self.preserve_structure.get(),
             "dry_run": self.dry_run.get(),
             "include_hidden": self.include_hidden.get(),
             "compute_duplicates": self.compute_duplicates.get(),
-            "include_suffixes": self.include_suffixes.get()
+            "include_suffixes": self.include_suffixes.get(),
+            "theme": self.current_theme
         }
         try:
             with SETTINGS_FILE.open("w",encoding="utf-8") as fh:
                 json.dump(data, fh, ensure_ascii=False, indent=2)
-            self._enqueue_log("Settings saved.")
+            if not auto:
+                self._enqueue_log("Settings saved.")
         except Exception as e:
             self._enqueue_log(f"Failed to save settings: {e}")
 
@@ -526,10 +599,20 @@ class SmartOrganizerApp:
             self.include_hidden.set(data.get("include_hidden",False))
             self.compute_duplicates.set(data.get("compute_duplicates",False))
             self.include_suffixes.set(data.get("include_suffixes",""))
+            # load theme if present
+            theme = data.get("theme")
+            if theme:
+                try:
+                    self.current_theme = theme
+                    if hasattr(self.style, "theme_use"):
+                        self.style.theme_use(self.current_theme)
+                except Exception:
+                    pass
             self._enqueue_log("Settings loaded.")
             self.refresh_preview()
             if self.selected_dir.get():
                 self.start_watchdog()
+            self._apply_theme_adjustments()
         except Exception as e:
             self._enqueue_log(f"Failed to load settings: {e}")
 
@@ -547,7 +630,11 @@ class SmartOrganizerApp:
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
-    root = tk.Tk()
+    # אם יש ttkbootstrap - נשתמש ב-Window כדי לקבל נושא יופי אוטומטי
+    if Window:
+        root = Window(themename="flatly")
+    else:
+        root = tk.Tk()
     app = SmartOrganizerApp(root)
 
     def on_close():
