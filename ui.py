@@ -17,6 +17,32 @@ from file_sorter import sort_directory, undo, redo
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+class ToolTip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        widget.bind("<Enter>", self.show_tip)
+        widget.bind("<Leave>", self.hide_tip)
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)  # חלון ללא גבולות
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                         font=("Segoe UI", 10))
+        label.pack(ipadx=4, ipady=2)
+
+    def hide_tip(self, event=None):
+        if self.tip_window:
+            self.tip_window.destroy()
+            self.tip_window = None
+
 # ------------------------ Logger ------------------------
 LOG_FILE = Path("sorted_files_log.txt")
 
@@ -84,7 +110,6 @@ def get_file_icon(file_path: Path, size=(48,48)):
         h = bbox[3]-bbox[1]
         draw.text(((size[0]-w)/2,(size[1]-h)/2), txt, fill="white", font=font)
     else:
-        # צבע לפי סוג קובץ, ברירת מחדל אפור
         color = FILE_TYPE_COLORS.get(suffix, (180,180,180,255))
         draw.rectangle([0,0,size[0],size[1]], fill=color)
         txt = suffix[1:].upper() if suffix else "FILE"
@@ -93,13 +118,20 @@ def get_file_icon(file_path: Path, size=(48,48)):
         h = bbox[3]-bbox[1]
         draw.text(((size[0]-w)/2,(size[1]-h)/2), txt, fill="black", font=font)
 
-        # אם תמונה, השתמש ב-thumbnail אמיתי
+        # אם תמונה, השתמש ב-thumbnail עם border אחיד
         if suffix in [".png",".jpg",".jpeg",".gif",".bmp"]:
             try:
-                im = Image.open(file_path)
-                im.thumbnail(size)
-                FILE_ICONS[key] = im
-                return im
+                im = Image.open(file_path).convert("RGBA")
+                im.thumbnail(size, Image.LANCZOS)
+
+                # צור תמונה ריבועית בגודל אחיד
+                thumb = Image.new("RGBA", size, (0,0,0,0))
+                # חשב מיקום מרכזי
+                x = (size[0] - im.width) // 2
+                y = (size[1] - im.height) // 2
+                thumb.paste(im, (x, y))
+                FILE_ICONS[key] = thumb
+                return thumb
             except:
                 pass
 
@@ -146,6 +178,8 @@ class SmartOrganizerApp:
         self._build_ui()
         self._load_settings()
         self.root.after(200, self._process_log_queue)
+        # התצוגה תתרענן אוטומטית כשמשנים גודל חלון
+        self.canvas.bind("<Configure>", lambda e: self._on_canvas_resize())
 
     # ------------------ UI ------------------
     def _build_ui(self):
@@ -217,8 +251,18 @@ class SmartOrganizerApp:
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.inner_frame = ttk.Frame(self.canvas)
-        self.canvas.create_window((0,0), window=self.inner_frame, anchor="nw")
-        self.inner_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas_window = self.canvas.create_window((0,0), window=self.inner_frame, anchor="nw", width=self.canvas.winfo_width())
+        self.canvas.bind("<Configure>", self._on_canvas_resize)
+
+    def _schedule_refresh(self):
+        # אם כבר מתוזמן רענון קודם, בטל אותו
+        if hasattr(self, "_refresh_after_id"):
+            try:
+                self.root.after_cancel(self._refresh_after_id)
+            except:
+                pass
+        # קבע רענון חדש אחרי 400 מילישניות
+        self._refresh_after_id = self.root.after(400, self.refresh_preview)
 
     # ------------------ Folder ------------------
     def browse_folder(self):
@@ -301,33 +345,67 @@ class SmartOrganizerApp:
         if not folder or not Path(folder).exists():
             return
 
-        # נקה את ה-frame
+        # נקה את התצוגה הקודמת
         for widget in self.inner_frame.winfo_children():
             widget.destroy()
         self.preview_images.clear()
 
-        # קבצים + תיקיות
         items = list(Path(folder).iterdir())
 
-        # מספר עמודות דינמי לפי רוחב
-        canvas_width = self.canvas.winfo_width() or 800
-        cols = max(1, canvas_width // (self.THUMB_SIZE[0]+20))
+        # קבע את הגודל של כל cell (ריבוע אחיד)
+        canvas_width = max(self.canvas.winfo_width(), 400)
+        cell_size = 80  # כולל padding
+        cols = max(1, canvas_width // cell_size)
 
         for idx, item in enumerate(items):
-            frame = ttk.Frame(self.inner_frame, relief=tk.RAISED, borderwidth=1, padding=4)
-            frame.grid(row=idx//cols, column=idx%cols, padx=5, pady=5, sticky="nsew")
+            frame = ttk.Frame(self.inner_frame, width=cell_size, height=cell_size, relief=tk.RIDGE, borderwidth=1)
+            frame.grid_propagate(False)  # מונע שה-frame ישנה את הגודל לפי תוכן
+            row = idx // cols
+            col = idx % cols
+            frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
 
             thumb_img = get_file_icon(item, size=self.THUMB_SIZE)
-
             thumb = ImageTk.PhotoImage(thumb_img)
             lbl = ttk.Label(frame, image=thumb)
             lbl.image = thumb
-            lbl.pack()
+            lbl.pack(pady=2)
 
-            name_lbl = ttk.Label(frame, text=item.name, wraplength=100)
-            name_lbl.pack()
+            ToolTip(lbl, text=item.name)
+
+            # שם הקובץ, מוגבל לשורה אחת עם … אם ארוך מדי
+            name = item.name
+            if len(name) > 12:
+                name = name[:10] + "…"
+            name_lbl = ttk.Label(frame, text=name, wraplength=cell_size-10, justify="center")
+            name_lbl.pack(side=tk.BOTTOM, pady=2)
 
             self.preview_images.append(thumb)
+
+        # הגדרת משקל לכל עמודה כדי למלא את השורה
+        for c in range(cols):
+            self.inner_frame.columnconfigure(c, weight=1)
+
+        # עדכון אזור הגלילה
+        self.canvas.update_idletasks()
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+
+    def _on_canvas_resize(self, event=None):
+        """מתאים את רוחב ה-inner_frame לגודל הקנבס ומרענן"""
+        try:
+            self.canvas.itemconfig(self.canvas_window, width=self.canvas.winfo_width())
+        except:
+            pass
+
+        # ביטול הטיימר הקודם רק אם באמת קיים
+        if hasattr(self, "_resize_after_id"):
+            try:
+                self.root.after_cancel(self._resize_after_id)
+            except:
+                pass
+            
+        # הפעלת טיימר חדש לעדכון
+        self._resize_after_id = self.root.after(300, self.refresh_preview)
 
     # ------------------ Watchdog ------------------
     def start_watchdog(self):
@@ -338,8 +416,8 @@ class SmartOrganizerApp:
         folder = self.selected_dir.get()
         if not folder:
             return
-
-        event_handler = FolderChangeHandler(lambda: self.root.after(300, self.refresh_preview))
+        
+        event_handler = FolderChangeHandler(lambda: self._schedule_refresh())
         self.observer = Observer()
         self.observer.schedule(event_handler, folder, recursive=False)
         self.observer.start()
