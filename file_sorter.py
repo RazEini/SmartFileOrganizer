@@ -208,11 +208,16 @@ def sort_directory(
                     if preserve_structure:
                         try:
                             rel = dup.relative_to(dest_root)
-                            dst = duplicates_dir / rel
+                            # --- תיקון כפילות קטגוריה ---
+                            parts = rel.parts
+                            if parts and parts[0].lower() == category.lower():
+                                rel = Path(*parts[1:])
+                                dst = duplicates_dir / rel
                         except Exception:
                             dst = duplicates_dir / dup.name
                     else:
                         dst = duplicates_dir / dup.name
+
                     final_dst, moved = move_file(dup, dst, dry_run)
                     created_dirs_set.add(str(final_dst.parent))
                     summary["moved_items"].append((str(dup), str(final_dst), moved))
