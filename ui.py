@@ -191,6 +191,10 @@ class SmartOrganizerApp:
         self.observer = None
 
         self._build_ui()
+
+        # <-- חשוב: אחרי יצירת הווידג'טים נעשה trace לשמירה אוטומטית על שינויים
+        self._attach_auto_save_traces()
+
         self._load_settings()  # this will override theme if stored
         self.root.after(200, self._process_log_queue)
         # התצוגה תתרענן אוטומטית כשמשנים גודל חלון
@@ -228,6 +232,7 @@ class SmartOrganizerApp:
         if self.current_theme in ("cyborg",):
             # dark tweaks
             try:
+                # ה־output/ canvas קיימים תמיד אחרי _build_ui, אז זה בטוח
                 self.output.config(bg="#0f1720", fg="#e6eef5", insertbackground="#ffffff")
                 self.canvas.config(bg="#0b1220")
             except Exception:
@@ -259,6 +264,10 @@ class SmartOrganizerApp:
         # Theme toggle button (moon/sun)
         self.theme_btn = ttk.Button(header, text="🌗 Toggle Theme", command=self.toggle_theme)
         self.theme_btn.pack(side=tk.RIGHT)
+
+        # Settings button (פותח חלון הגדרות)
+        self.settings_btn = ttk.Button(header, text="⚙️ Settings", command=self.open_settings_window)
+        self.settings_btn.pack(side=tk.RIGHT, padx=(0,8))
 
         # Directory
         dir_frame = ttk.Frame(frm)
@@ -322,15 +331,18 @@ class SmartOrganizerApp:
         # apply small theme tweaks
         self._apply_theme_adjustments()
 
-    def _schedule_refresh(self):
-        # אם כבר מתוזמן רענון קודם, בטל אותו
-        if hasattr(self, "_refresh_after_id"):
-            try:
-                self.root.after_cancel(self._refresh_after_id)
-            except:
-                pass
-        # קבע רענון חדש אחרי 400 מילישניות
-        self._refresh_after_id = self.root.after(400, self.refresh_preview)
+    def _attach_auto_save_traces(self):
+        """קישור trace לשמירה אוטומטית כשמשתנים משתנים חשובים."""
+        try:
+            # עבור BooleanVar / StringVar – שמירה בכל שינוי
+            for var in (self.preserve_structure, self.dry_run, self.include_hidden, self.compute_duplicates):
+                var.trace_add("write", lambda *args: self._save_settings(auto=True))
+            # selected_dir ושדות טקסט
+            self.selected_dir.trace_add("write", lambda *args: self._save_settings(auto=True))
+            self.include_suffixes.trace_add("write", lambda *args: self._save_settings(auto=True))
+        except Exception:
+            # במקרה של סביבה שממש לא תומכת ב־trace_add – זה לא קריטי
+            pass
 
     # ------------------ Folder ------------------
     def browse_folder(self):
@@ -339,6 +351,8 @@ class SmartOrganizerApp:
             self.selected_dir.set(path)
             self.refresh_preview()
             self.start_watchdog()
+            # שמירה אוטומטית כשמשתמש בוחר תיקיה
+            self._save_settings(auto=True)
 
     def open_folder(self):
         path = self.selected_dir.get()
@@ -480,9 +494,14 @@ class SmartOrganizerApp:
 
     # ------------------ Watchdog ------------------
     def start_watchdog(self):
+        # עצור כל watchdog קיים לפני התחלה חדשה
         if hasattr(self, "observer") and self.observer:
-            self.observer.stop()
-            self.observer.join()
+            try:
+                self.observer.stop()
+                self.observer.join(timeout=1)
+            except Exception:
+                pass
+            self.observer = None
 
         folder = self.selected_dir.get()
         if not folder:
@@ -490,8 +509,12 @@ class SmartOrganizerApp:
 
         event_handler = FolderChangeHandler(lambda: self._schedule_refresh())
         self.observer = Observer()
-        self.observer.schedule(event_handler, folder, recursive=False)
-        self.observer.start()
+        try:
+            self.observer.schedule(event_handler, folder, recursive=False)
+            self.observer.start()
+        except Exception as e:
+            # לדוגמה אם התיקיה לא קיימת או שאין הרשאות
+            self._enqueue_log(f"Watchdog failed to start: {e}")
 
     # ------------------ Logging ------------------
     def _enqueue_log(self,msg):
@@ -593,6 +616,7 @@ class SmartOrganizerApp:
         try:
             with SETTINGS_FILE.open("r",encoding="utf-8") as fh:
                 data = json.load(fh)
+            # קרא והחיל ערכים
             self.selected_dir.set(data.get("last_folder",""))
             self.preserve_structure.set(data.get("preserve_structure",True))
             self.dry_run.set(data.get("dry_run",False))
@@ -609,14 +633,25 @@ class SmartOrganizerApp:
                 except Exception:
                     pass
             self._enqueue_log("Settings loaded.")
+            # אחרי שטעננו את התיקיה – נרענן ואם יש תיקיה נתחיל watch
             self.refresh_preview()
-            if self.selected_dir.get():
+            if self.selected_dir.get() and Path(self.selected_dir.get()).exists():
                 self.start_watchdog()
+            # החלת התאמות לנראות לפי הערכה
             self._apply_theme_adjustments()
         except Exception as e:
             self._enqueue_log(f"Failed to load settings: {e}")
 
-    # ------------------ Progress ------------------
+    def _schedule_refresh(self):
+        # אם כבר מתוזמן רענון קודם, בטל אותו
+        if hasattr(self, "_refresh_after_id"):
+            try:
+                self.root.after_cancel(self._refresh_after_id)
+            except:
+                pass
+        # קבע רענון חדש אחרי 400 מילישניות
+        self._refresh_after_id = self.root.after(400, self.refresh_preview)
+
     def _update_progress(self,pct):
         self.progress_value.set(pct)
         self.status_label.config(text=f"Progress: {pct}%")
@@ -627,6 +662,72 @@ class SmartOrganizerApp:
         self.status_label.config(text="Done ✅", foreground="green")
         self.root.after(900, lambda:self.progress_value.set(0))
         self.refresh_preview()
+
+    # ------------------ Settings Window / Reset ------------------
+    def open_settings_window(self):
+        """חלון הגדרות שמאפשר סקירה ושינוי ידני + איפוס."""
+        win = tk.Toplevel(self.root)
+        win.title("Settings")
+        win.geometry("480x320")
+        win.transient(self.root)
+
+        frm = ttk.Frame(win, padding=12)
+        frm.pack(fill=tk.BOTH, expand=True)
+
+        # Default folder
+        ttk.Label(frm, text="Default target folder:").pack(anchor=tk.W, pady=(0,4))
+        def_folder_entry = ttk.Entry(frm, textvariable=self.selected_dir)
+        def_folder_entry.pack(fill=tk.X)
+        ttk.Button(frm, text="Browse...", command=self.browse_folder).pack(anchor=tk.E, pady=(4,6))
+
+        # Checkbuttons
+        ttk.Checkbutton(frm, text="Preserve folder structure", variable=self.preserve_structure).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(frm, text="Dry run (no changes)", variable=self.dry_run).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(frm, text="Include hidden files", variable=self.include_hidden).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(frm, text="Detect duplicates (hash)", variable=self.compute_duplicates).pack(anchor=tk.W, pady=2)
+
+        # Suffixes
+        ttk.Label(frm, text="Include only file types (comma separated):").pack(anchor=tk.W, pady=(8,0))
+        suffix_entry = ttk.Entry(frm, textvariable=self.include_suffixes)
+        suffix_entry.pack(fill=tk.X, pady=(0,8))
+
+        # Theme display and reset buttons
+        ttk.Label(frm, text=f"Current theme: {self.current_theme}").pack(anchor=tk.W, pady=(0,8))
+
+        btns = ttk.Frame(frm)
+        btns.pack(fill=tk.X, pady=(8,0))
+        ttk.Button(btns, text="Save", command=lambda: (self._save_settings(), win.destroy())).pack(side=tk.RIGHT, padx=6)
+        ttk.Button(btns, text="Cancel", command=win.destroy).pack(side=tk.RIGHT)
+
+        # Reset setup (מוחק את הקובץ ומאפס ערכים לדיפולט)
+        def reset_setup():
+            confirm = messagebox.askyesno("Reset Settings", "Are you sure you want to reset settings to defaults? This will remove organizer_settings.json.")
+            if not confirm:
+                return
+            try:
+                if SETTINGS_FILE.exists():
+                    SETTINGS_FILE.unlink()
+                # אפס ערכים אל ברירת מחדל בשדות
+                self.selected_dir.set("")
+                self.preserve_structure.set(True)
+                self.dry_run.set(False)
+                self.include_hidden.set(False)
+                self.compute_duplicates.set(False)
+                self.include_suffixes.set("")
+                self.current_theme = "flatly"
+                if hasattr(self.style, "theme_use"):
+                    try:
+                        self.style.theme_use(self.current_theme)
+                    except Exception:
+                        pass
+                self._apply_theme_adjustments()
+                self._save_settings(auto=True)
+                self._enqueue_log("Settings reset to defaults.")
+                messagebox.showinfo("Reset", "Settings have been reset.")
+            except Exception as e:
+                messagebox.showerror("Reset failed", str(e))
+
+        ttk.Button(frm, text="Reset Setup", command=reset_setup).pack(side=tk.LEFT, pady=(8,0))
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
@@ -639,8 +740,11 @@ if __name__ == "__main__":
 
     def on_close():
         if hasattr(app, "observer") and app.observer:
-            app.observer.stop()
-            app.observer.join()
+            try:
+                app.observer.stop()
+                app.observer.join(timeout=1)
+            except Exception:
+                pass
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_close)
