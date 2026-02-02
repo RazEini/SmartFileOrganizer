@@ -1,9 +1,9 @@
-<h1 align="right">📂 Smart File Organizer – מארגן הקבצים החכם</h1>
+<h1 align="center">📂 Smart File Organizer – מארגן הקבצים החכם</h1>
 
-<p>כלי שולחני חכם לסידור קבצים לפי סוגים לתיקיות מתאימות, עם ממשק גרפי מודרני (Light / Dark Mode) וגם אפשרות להרצה דרך שורת הפקודה (CLI).  
+<p align="center">כלי שולחני חכם לסידור קבצים לפי סוגים לתיקיות מתאימות, עם ממשק גרפי מודרני (Light / Dark Mode) וגם אפשרות להרצה דרך שורת הפקודה (CLI).  
 נבנה ב־<strong>Python 3.9+</strong> עם <code>Tkinter</code> ו־<code>ttkbootstrap</code> לעיצוב מודרני,  
 עם תמיכה באפשרויות מתקדמות כמו <code>watchdog</code> (מעקב שינויים בזמן אמת) ו־<code>Pillow</code> (תמיכה באייקונים ותמונות).</p>
-
+<br>
 <hr/>
 
 <h2>✨ חידושים בגרסה האחרונה</h2>
