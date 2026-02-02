@@ -21,7 +21,7 @@
 
 <h2 align="center">🔍 חידושים בגרסה האחרונה</h2>
 
-<table align="center">
+<table align="center" dir="rtl">
   <thead>
     <tr>
       <th>פיצ'ר</th>
@@ -77,7 +77,7 @@
 
 <h2 align="center">📁 מבנה הפרויקט</h2>
 
-<table align="center">
+<table align="center" dir="rtl">
   <thead>
     <tr>
       <th>קובץ / תיקייה</th>
@@ -116,7 +116,7 @@
 
 <h2 align="center">🧠 פיצ'רים מרכזיים</h2>
 
-<table align="center">
+<table align="center" dir="rtl">
   <thead>
     <tr>
       <th>תחום</th>
@@ -175,7 +175,7 @@
 
 <h2 align="center">🗂️ קטגוריות קבצים</h2>
 
-<table align="center">
+<table align="center" dir="rtl">
   <thead>
     <tr>
       <th>קטגוריה</th>
