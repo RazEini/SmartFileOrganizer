@@ -244,20 +244,24 @@
 
 <hr>
 
-<h2 align="center">⚙️ התקנה והרצה</h2>
+<div align="center">
 
-<table align="center">
-  <tr>
-    <td><strong>שלב 1</strong></td>
-    <td><code>pip install ttkbootstrap Pillow watchdog</code></td>
-  </tr>
-  <tr>
-    <td><strong>שלב 2</strong></td>
-    <td><code>python main.py</code></td>
-  </tr>
-</table>
+## ⚙️ התקנה והרצה
 
-<h3>CLI</h3>
+הגדרת הסביבה והפעלת הפרויקט בכמה צעדים פשוטים:
+
+| שלב | פעולה | פקודה |
+| :---: | :--- | :--- |
+| 1️⃣ | **התקנת תלויות** | `pip install ttkbootstrap Pillow watchdog` |
+| 2️⃣ | **הרצת הממשק** | `python main.py` |
+
+---
+
+### 🖥️ שימוש בממשק שורת פקודה (CLI)
+
+ניתן להריץ את הכלי ישירות מהטרמינל עבור אוטומציות או עבודה ללא ממשק גרפי:
+
+</div>
 
 <div dir="ltr">
 
