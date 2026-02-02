@@ -19,7 +19,7 @@
 <br/>
 <hr>
 
-<h2 align="center">👀 חידושים בגרסה האחרונה</h2>
+<h2 align="center">🔍 חידושים בגרסה האחרונה</h2>
 
 <table align="center">
   <thead>
