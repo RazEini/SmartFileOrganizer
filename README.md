@@ -83,33 +83,33 @@
   <thead>
     <tr>
       <th>קובץ / תיקייה</th>
-      <th>תיאור</th>
+      <th>תיאור מורחב</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td><code>main.py</code></td>
-      <td>נקודת הכניסה – GUI או CLI</td>
+      <td>נקודת הכניסה של התוכנה. מנהל את זרימת התוכנה, טוען את ההגדרות, ומאפשר הפעלה דרך GUI או CLI.</td>
     </tr>
     <tr>
       <td><code>ui.py</code></td>
-      <td>ממשק גרפי מודרני עם Light / Dark</td>
+      <td>ממשק גרפי מודרני עם Light / Dark Mode. אחראי על חלונות, כפתורים, תפריטים ודיאלוגים, ומשתלב עם פעולות הסידור ב־<code>file_sorter.py</code>.</td>
     </tr>
     <tr>
       <td><code>file_sorter.py</code></td>
-      <td>לוגיקת הסידור, כפילויות, Undo / Redo</td>
+      <td>לוגיקת הסידור המרכזית: זיהוי סוגי קבצים, טיפול בכפילויות, העברת קבצים לקטגוריות, Undo / Redo, ותמיכה ב־Dry-Run.</td>
     </tr>
     <tr>
       <td><code>logger.py</code></td>
-      <td>רישום פעולות ללוג</td>
+      <td>מודול רישום פעולות ולוגים. שומר היסטוריה של פעולות המשתמש, שגיאות והתרעות לצורכי מעקב ושחזור.</td>
     </tr>
     <tr>
       <td><code>organizer_settings.json</code></td>
-      <td>שמירת הגדרות ממשק</td>
+      <td>קובץ הגדרות המשתמש: מצב צבע (Light/Dark), תיקייה אחרונה, סינונים והעדפות נוספות. נטען ונשמר אוטומטית.</td>
     </tr>
     <tr>
       <td><code>.sort_history.json</code></td>
-      <td>היסטוריית פעולות לסידור ושחזור</td>
+      <td>קובץ היסטוריית פעולות הסידור. מאפשר Undo / Redo ושחזור מלא של שינויים שבוצעו על הקבצים.</td>
     </tr>
   </tbody>
 </table>
@@ -182,17 +182,65 @@
     <tr>
       <th>קטגוריה</th>
       <th>אייקון</th>
-      <th>סיומות</th>
+      <th>סיומות נתמכות</th>
+      <th>תיאור</th>
     </tr>
   </thead>
   <tbody>
-    <tr><td>Images</td><td>🖼️</td><td>.jpg, .png, .gif, .webp, .heic</td></tr>
-    <tr><td>Documents</td><td>📄</td><td>.pdf, .docx, .txt</td></tr>
-    <tr><td>Code</td><td>💻</td><td>.py, .js, .java, .cpp, .html</td></tr>
-    <tr><td>Videos</td><td>🎥</td><td>.mp4, .mkv, .avi</td></tr>
-    <tr><td>Audio</td><td>🎵</td><td>.mp3, .wav, .flac</td></tr>
-    <tr><td>Archives</td><td>📦</td><td>.zip, .rar, .7z</td></tr>
-    <tr><td>Others</td><td>❓</td><td>כל השאר</td></tr>
+    <tr>
+      <td>Images</td>
+      <td>🖼️</td>
+      <td>.jpg, .jpeg, .png, .gif, .bmp, .webp, .heic</td>
+      <td>קבצי תמונה וגרפיקה, כולל פורמטים נפוצים ומתקדמים</td>
+    </tr>
+    <tr>
+      <td>Documents</td>
+      <td>📄</td>
+      <td>.pdf, .docx, .doc, .txt, .odt, .rtf</td>
+      <td>מסמכים, טקסטים וקבצי Office</td>
+    </tr>
+    <tr>
+      <td>Code</td>
+      <td>💻</td>
+      <td>.py, .js, .ts, .java, .cpp, .c, .html, .css</td>
+      <td>קוד מקור וקבצי פיתוח</td>
+    </tr>
+    <tr>
+      <td>Videos</td>
+      <td>🎥</td>
+      <td>.mp4, .mkv, .avi, .mov, .flv</td>
+      <td>קבצי וידאו בפורמטים נפוצים</td>
+    </tr>
+    <tr>
+      <td>Audio</td>
+      <td>🎵</td>
+      <td>.mp3, .wav, .aac, .ogg, .flac</td>
+      <td>קבצי שמע ומוזיקה</td>
+    </tr>
+    <tr>
+      <td>Archives</td>
+      <td>📦</td>
+      <td>.zip, .rar, .7z, .tar, .gz</td>
+      <td>קבצי ארכיון ודחיסה</td>
+    </tr>
+    <tr>
+      <td>Spreadsheets</td>
+      <td>📊</td>
+      <td>.xls, .xlsx, .csv</td>
+      <td>גיליונות נתונים וטבלאות</td>
+    </tr>
+    <tr>
+      <td>Presentations</td>
+      <td>📈</td>
+      <td>.ppt, .pptx</td>
+      <td>מצגות וקבצי הצגה</td>
+    </tr>
+    <tr>
+      <td>Others</td>
+      <td>❓</td>
+      <td>כל סיומת לא מזוהה</td>
+      <td>קבצים שלא שויכו לקטגוריה אחרת</td>
+    </tr>
   </tbody>
 </table>
 
