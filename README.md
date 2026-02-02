@@ -2,10 +2,8 @@
 
 <h1 align="center">📂 Smart File Organizer — מארגן קבצים חכם</h1>
 
-<p align="center">
-  <strong>Smart File Organizer</strong> הוא כלי שולחני חכם לסידור קבצים אוטומטי לפי סוגים וקטגוריות.<br>
-  כולל <strong>GUI מודרני (Light / Dark)</strong>, אפשרות <strong>CLI</strong>, Undo / Redo, טיפול בכפילויות<br>
-  ומעקב בזמן אמת אחרי תיקיות באמצעות <code>watchdog</code>.
+<p align="center" dir="rtl">
+  <strong>Smart File Organizer</strong> הוא כלי שולחני חכם לסידור קבצים אוטומטי לפי סוגים וקטגוריות. הכלי כולל ממשק גרפי מודרני (<strong>GUI</strong>) עם תמיכה ב-<strong>Light / Dark Mode</strong>, ממשק שורת פקודה (<strong>CLI</strong>), אפשרות <strong>Undo / Redo</strong>, ניהול קבצים כפולים ומעקב בזמן אמת אחרי תיקיות באמצעות <code>watchdog</code>.
 </p>
 
 <br>
