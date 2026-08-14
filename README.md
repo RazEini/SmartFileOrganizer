@@ -1,9 +1,7 @@
-<div dir="rtl">
+<h1 align="center">📂 Smart File Organizer</h1>
 
-<h1 align="center">📂 Smart File Organizer — מארגן קבצים חכם</h1>
-
-<p align="center" dir="rtl">
-  <strong>Smart File Organizer</strong> הוא כלי שולחני חכם לסידור קבצים אוטומטי לפי סוגים וקטגוריות. הכלי כולל ממשק גרפי מודרני (<strong>GUI</strong>) עם תמיכה ב-<strong>Light / Dark Mode</strong>, ממשק שורת פקודה (<strong>CLI</strong>), אפשרות <strong>Undo / Redo</strong>, ניהול קבצים כפולים ומעקב בזמן אמת אחרי תיקיות באמצעות <code>watchdog</code>.
+<p align="center">
+  <strong>Smart File Organizer</strong> is a smart desktop tool for automatically sorting files by type and category. It includes a modern graphical interface (<strong>GUI</strong>) with <strong>Light / Dark Mode</strong> support, a command-line interface (<strong>CLI</strong>), <strong>Undo / Redo</strong> functionality, duplicate file handling, and real-time folder monitoring using <code>watchdog</code>.
 </p>
 
 <br>
@@ -19,169 +17,168 @@
 <br/>
 <hr>
 
-<h2 align="center">🔍 חידושים בגרסה האחרונה</h2>
+<h2 align="center">🔍 What's New in the Latest Version</h2>
 
-<table align="center" dir="rtl">
+<table align="center">
   <thead>
     <tr>
-      <th>פיצ'ר</th>
-      <th>תיאור</th>
+      <th>Feature</th>
+      <th>Description</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>🎨 עיצוב מודרני</td>
-      <td>שימוש ב־<strong>ttkbootstrap</strong> עם Themes מוכנים, מראה נקי ואחיד ללא צורך ב־CSS ידני</td>
+      <td>🎨 Modern Design</td>
+      <td>Built with <strong>ttkbootstrap</strong> using ready-made themes for a clean, consistent look with no manual CSS required</td>
     </tr>
     <tr>
       <td>🌗 Light / Dark Mode</td>
-      <td>מעבר מיידי בין מצבים כולל שמירה אוטומטית ב־<code>organizer_settings.json</code></td>
+      <td>Instant switching between modes, with automatic saving to <code>organizer_settings.json</code></td>
     </tr>
     <tr>
-      <td>🌓 כפתור מצב תצוגה</td>
-      <td>שליטה מהירה במצב התאורה דרך כפתור ☀️ / 🌙 בראש הממשק</td>
+      <td>🌓 Theme Toggle Button</td>
+      <td>Quick control over the display mode via a ☀️ / 🌙 button at the top of the interface</td>
     </tr>
     <tr>
-      <td>💾 שמירת הגדרות</td>
-      <td>טעינה ושמירה אוטומטית של תיקייה אחרונה, סינונים והעדפות משתמש</td>
+      <td>💾 Settings Persistence</td>
+      <td>Automatic loading and saving of the last used folder, filters, and user preferences</td>
     </tr>
     <tr>
       <td>🔄 Undo / Redo</td>
-      <td>שחזור מלא של פעולות סידור על בסיס היסטוריה מתועדת</td>
+      <td>Full restoration of sorting actions based on a recorded history</td>
     </tr>
     <tr>
-      <td>🧠 טיפול בכפילויות</td>
-      <td>זיהוי קבצים זהים והוספת אינדקסים <code>(1)</code>, <code>(2)</code> ללא דריסה</td>
+      <td>🧠 Duplicate Handling</td>
+      <td>Detects identical files and adds indices <code>(1)</code>, <code>(2)</code> without overwriting</td>
     </tr>
     <tr>
-      <td>👀 ניטור בזמן אמת</td>
-      <td>מעקב אוטומטי אחר שינויים בתיקייה באמצעות <strong>watchdog</strong></td>
+      <td>👀 Real-Time Monitoring</td>
+      <td>Automatically tracks folder changes using <strong>watchdog</strong></td>
     </tr>
     <tr>
       <td>🧪 Dry-Run</td>
-      <td>הצגת פעולות עתידיות לפני ביצוע בפועל לצורך בדיקה ובטיחות</td>
+      <td>Preview upcoming actions before actually executing them, for testing and safety</td>
     </tr>
     <tr>
-      <td>💻 CLI מתקדם</td>
-      <td>הרצה משורת הפקודה עם flags מתקדמים וללא שימוש בממשק גרפי</td>
+      <td>💻 Advanced CLI</td>
+      <td>Run from the command line with advanced flags, no GUI required</td>
     </tr>
     <tr>
-      <td>📝 לוגים</td>
-      <td>רישום מלא של כל פעולות הסידור לצורכי בקרה ושחזור</td>
+      <td>📝 Logging</td>
+      <td>Full logging of all sorting actions for auditing and recovery purposes</td>
     </tr>
   </tbody>
 </table>
 
-
 <hr>
 
-<h2 align="center">📁 מבנה הפרויקט</h2>
+<h2 align="center">📁 Project Structure</h2>
 
-<table align="center" dir="rtl">
+<table align="center">
   <thead>
     <tr>
-      <th>קובץ / תיקייה</th>
-      <th>תיאור מורחב</th>
+      <th>File / Folder</th>
+      <th>Extended Description</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td><code>main.py</code></td>
-      <td>נקודת הכניסה של התוכנה. מנהל את זרימת התוכנה, טוען את ההגדרות, ומאפשר הפעלה דרך GUI או CLI.</td>
+      <td>The program's entry point. Manages the program flow, loads settings, and allows launching via GUI or CLI.</td>
     </tr>
     <tr>
       <td><code>ui.py</code></td>
-      <td>ממשק גרפי מודרני עם Light / Dark Mode. אחראי על חלונות, כפתורים, תפריטים ודיאלוגים, ומשתלב עם פעולות הסידור ב־<code>file_sorter.py</code>.</td>
+      <td>Modern graphical interface with Light / Dark Mode. Handles windows, buttons, menus, and dialogs, and integrates with the sorting operations in <code>file_sorter.py</code>.</td>
     </tr>
     <tr>
       <td><code>file_sorter.py</code></td>
-      <td>לוגיקת הסידור המרכזית: זיהוי סוגי קבצים, טיפול בכפילויות, העברת קבצים לקטגוריות, Undo / Redo, ותמיכה ב־Dry-Run.</td>
+      <td>Core sorting logic: file type detection, duplicate handling, moving files into categories, Undo / Redo, and Dry-Run support.</td>
     </tr>
     <tr>
       <td><code>logger.py</code></td>
-      <td>מודול רישום פעולות ולוגים. שומר היסטוריה של פעולות המשתמש, שגיאות והתרעות לצורכי מעקב ושחזור.</td>
+      <td>Logging module. Stores a history of user actions, errors, and alerts for tracking and recovery purposes.</td>
     </tr>
     <tr>
       <td><code>organizer_settings.json</code></td>
-      <td>קובץ הגדרות המשתמש: מצב צבע (Light/Dark), תיקייה אחרונה, סינונים והעדפות נוספות. נטען ונשמר אוטומטית.</td>
+      <td>User settings file: color mode (Light/Dark), last used folder, filters, and additional preferences. Loaded and saved automatically.</td>
     </tr>
     <tr>
       <td><code>.sort_history.json</code></td>
-      <td>קובץ היסטוריית פעולות הסידור. מאפשר Undo / Redo ושחזור מלא של שינויים שבוצעו על הקבצים.</td>
+      <td>Sorting action history file. Enables Undo / Redo and full restoration of changes made to files.</td>
     </tr>
   </tbody>
 </table>
 
 <hr>
 
-<h2 align="center">🧠 פיצ'רים מרכזיים</h2>
+<h2 align="center">🧠 Key Features</h2>
 
-<table align="center" dir="rtl">
+<table align="center">
   <thead>
     <tr>
-      <th>תחום</th>
-      <th>תכונה</th>
-      <th>סטטוס</th>
-      <th>הערות</th>
+      <th>Area</th>
+      <th>Feature</th>
+      <th>Status</th>
+      <th>Notes</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>📂 סידור קבצים</td>
-      <td>חלוקה אוטומטית לפי סוג</td>
+      <td>📂 File Sorting</td>
+      <td>Automatic classification by type</td>
       <td>✅</td>
-      <td>תמונות, מסמכים, קוד, וידאו, שמע ועוד</td>
+      <td>Images, documents, code, video, audio, and more</td>
     </tr>
     <tr>
-      <td>🧪 בטיחות</td>
+      <td>🧪 Safety</td>
       <td>Dry-Run</td>
       <td>✅</td>
-      <td>בדיקה לפני הזזה בפועל</td>
+      <td>Preview before actually moving files</td>
     </tr>
     <tr>
-      <td>🧠 כפילויות</td>
-      <td>טיפול חכם בשמות זהים</td>
+      <td>🧠 Duplicates</td>
+      <td>Smart handling of identical names</td>
       <td>✅</td>
-      <td>הוספת (1), (2) לפי צורך</td>
+      <td>Adds (1), (2) as needed</td>
     </tr>
     <tr>
-      <td>🔄 שחזור</td>
+      <td>🔄 Recovery</td>
       <td>Undo / Redo</td>
       <td>✅</td>
-      <td>שחזור מלא מהיסטוריה</td>
+      <td>Full restoration from history</td>
     </tr>
     <tr>
-      <td>👀 ניטור</td>
-      <td>מעקב תיקיות בזמן אמת</td>
+      <td>👀 Monitoring</td>
+      <td>Real-time folder tracking</td>
       <td>✅</td>
-      <td>באמצעות watchdog</td>
+      <td>Powered by watchdog</td>
     </tr>
     <tr>
       <td>💻 CLI</td>
-      <td>הרצה משורת הפקודה</td>
+      <td>Command-line execution</td>
       <td>✅</td>
-      <td>כולל flags מתקדמים</td>
+      <td>Includes advanced flags</td>
     </tr>
     <tr>
-      <td>🎨 ממשק</td>
+      <td>🎨 Interface</td>
       <td>Light / Dark Mode</td>
       <td>✅</td>
-      <td>שמירה אוטומטית</td>
+      <td>Automatically saved</td>
     </tr>
   </tbody>
 </table>
 
 <hr>
 
-<h2 align="center">🗂️ קטגוריות קבצים</h2>
+<h2 align="center">🗂️ File Categories</h2>
 
-<table align="center" dir="rtl">
+<table align="center">
   <thead>
     <tr>
-      <th>קטגוריה</th>
-      <th>אייקון</th>
-      <th>סיומות נתמכות</th>
-      <th>תיאור</th>
+      <th>Category</th>
+      <th>Icon</th>
+      <th>Supported Extensions</th>
+      <th>Description</th>
     </tr>
   </thead>
   <tbody>
@@ -189,55 +186,55 @@
       <td>Images</td>
       <td>🖼️</td>
       <td>.jpg, .jpeg, .png, .gif, .bmp, .webp, .heic</td>
-      <td>קבצי תמונה וגרפיקה, כולל פורמטים נפוצים ומתקדמים</td>
+      <td>Image and graphic files, including common and advanced formats</td>
     </tr>
     <tr>
       <td>Documents</td>
       <td>📄</td>
       <td>.pdf, .docx, .doc, .txt, .odt, .rtf</td>
-      <td>מסמכים, טקסטים וקבצי Office</td>
+      <td>Documents, text files, and Office files</td>
     </tr>
     <tr>
       <td>Code</td>
       <td>💻</td>
       <td>.py, .js, .ts, .java, .cpp, .c, .html, .css</td>
-      <td>קוד מקור וקבצי פיתוח</td>
+      <td>Source code and development files</td>
     </tr>
     <tr>
       <td>Videos</td>
       <td>🎥</td>
       <td>.mp4, .mkv, .avi, .mov, .flv</td>
-      <td>קבצי וידאו בפורמטים נפוצים</td>
+      <td>Video files in common formats</td>
     </tr>
     <tr>
       <td>Audio</td>
       <td>🎵</td>
       <td>.mp3, .wav, .aac, .ogg, .flac</td>
-      <td>קבצי שמע ומוזיקה</td>
+      <td>Audio and music files</td>
     </tr>
     <tr>
       <td>Archives</td>
       <td>📦</td>
       <td>.zip, .rar, .7z, .tar, .gz</td>
-      <td>קבצי ארכיון ודחיסה</td>
+      <td>Archive and compressed files</td>
     </tr>
     <tr>
       <td>Spreadsheets</td>
       <td>📊</td>
       <td>.xls, .xlsx, .csv</td>
-      <td>גיליונות נתונים וטבלאות</td>
+      <td>Data spreadsheets and tables</td>
     </tr>
     <tr>
       <td>Presentations</td>
       <td>📈</td>
       <td>.ppt, .pptx</td>
-      <td>מצגות וקבצי הצגה</td>
+      <td>Presentations and slide files</td>
     </tr>
     <tr>
       <td>Others</td>
       <td>❓</td>
-      <td>כל סיומת לא מזוהה</td>
-      <td>קבצים שלא שויכו לקטגוריה אחרת</td>
+      <td>Any unrecognized extension</td>
+      <td>Files that were not assigned to another category</td>
     </tr>
   </tbody>
 </table>
@@ -246,24 +243,22 @@
 
 <div align="center">
 
-## ⚙️ התקנה והרצה
+## ⚙️ Installation & Setup
 
-הגדרת הסביבה והפעלת הפרויקט בכמה צעדים פשוטים:
+Set up the environment and launch the project in a few simple steps:
 
-| שלב | פעולה | פקודה |
+| Step | Action | Command |
 | :---: | :--- | :--- |
-| 1️⃣ | **התקנת תלויות** | `pip install ttkbootstrap Pillow watchdog` |
-| 2️⃣ | **הרצת הממשק** | `python main.py` |
+| 1️⃣ | **Install dependencies** | `pip install ttkbootstrap Pillow watchdog` |
+| 2️⃣ | **Run the interface** | `python main.py` |
 
 ---
 
-### 🖥️ שימוש בממשק שורת פקודה (CLI)
+### 🖥️ Using the Command-Line Interface (CLI)
 
-ניתן להריץ את הכלי ישירות מהטרמינל עבור אוטומציות או עבודה ללא ממשק גרפי:
+You can run the tool directly from the terminal for automation or headless (no-GUI) operation:
 
 </div>
-
-<div dir="ltr">
 
 ```bash
 python main.py <folder> --no-gui [--dry-run] [--include-hidden] [--duplicates]
@@ -271,24 +266,22 @@ python main.py <folder> --no-gui [--dry-run] [--include-hidden] [--duplicates]
 
 <hr>
 
-<h2>⚠️ הערות חשובות</h2>
+<h2>⚠️ Important Notes</h2>
 
 <ul>
-  <li>מומלץ להתחיל ב־<strong>Dry-Run</strong></li>
-  <li>קבצים שכבר בתיקיות היעד לא מוזזים</li>
-  <li>ניתן להרחיב קטגוריות בקובץ <code>file_sorter.py</code></li>
+  <li>It's recommended to start with a <strong>Dry-Run</strong></li>
+  <li>Files already in their target folders are not moved</li>
+  <li>Categories can be extended in the <code>file_sorter.py</code> file</li>
 </ul>
 
 <hr>
 
-<h2>📄 רישיון</h2>
+<h2>📄 License</h2>
 
 <p>
-  הפרויקט מופץ תחת רישיון <strong>MIT</strong> – חופשי לשימוש, שינוי והפצה עם קרדיט.
+  This project is distributed under the <strong>MIT</strong> license – free to use, modify, and distribute with credit.
 </p>
 
 <hr>
 
 <p align="center"><strong>👨‍💻 Raz Eini (2025)</strong></p>
-
-</div>
