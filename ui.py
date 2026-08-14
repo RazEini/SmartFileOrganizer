@@ -484,6 +484,24 @@ class SmartOrganizerApp:
         self.canvas.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
+    # ------------------ Canvas Resize Handler ------------------
+    def _on_canvas_resize(self, event=None):
+        """מתאים את רוחב ה-inner_frame לגודל הקנבס ומרענן"""
+        try:
+            self.canvas.itemconfig(self.canvas_window, width=self.canvas.winfo_width())
+        except Exception:
+            pass
+
+        # ביטול הטיימר הקודם במידה וקיים
+        if hasattr(self, "_resize_after_id"):
+            try:
+                self.root.after_cancel(self._resize_after_id)
+            except Exception:
+                pass
+
+        # הפעלת טיימר חדש לרענון התצוגה
+        self._resize_after_id = self.root.after(300, self.refresh_preview)
+
     # ------------------ Watchdog ------------------
     def start_watchdog(self):
         # עצור כל watchdog קיים לפני התחלה חדשה
