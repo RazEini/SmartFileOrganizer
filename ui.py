@@ -421,7 +421,7 @@ class SmartOrganizerApp:
         finally:
             self.root.after(0, self._finish_sort)
 
-    # ------------------ Preview ------------------
+   # ------------------ Preview ------------------
     def refresh_preview(self):
         folder = self.selected_dir.get()
         if not folder or not Path(folder).exists():
@@ -434,63 +434,55 @@ class SmartOrganizerApp:
 
         items = list(Path(folder).iterdir())
 
-        # קבע את הגודל של כל cell (ריבוע אחיד)
+        # קבע את הגודל והרווחים של המעטפת
         canvas_width = max(self.canvas.winfo_width(), 400)
-        cell_size = 80  # כולל padding
-        cols = max(1, canvas_width // cell_size)
+        cell_width = 110  # רוחב רחב יותר כדי שטקסט ייכנס בטבעיות
+        cols = max(1, canvas_width // cell_width)
 
         for idx, item in enumerate(items):
-            frame = ttk.Frame(self.inner_frame, width=cell_size, height=cell_size, relief=tk.RIDGE, borderwidth=1)
-            frame.grid_propagate(False)  # מונע שה-frame ישנה את הגודל לפי תוכן
+            # יצירת Frame שטוח לחלוטין - ללא border וללא relief
+            frame = ttk.Frame(self.inner_frame, padding=4)
             row = idx // cols
             col = idx % cols
-            frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+            frame.grid(row=row, column=col, padx=6, pady=8, sticky="n")
 
+            # אייקון הקובץ/תיקייה
             thumb_img = get_file_icon(item, size=self.THUMB_SIZE)
             thumb = ImageTk.PhotoImage(thumb_img)
-            lbl = ttk.Label(frame, image=thumb)
+            lbl = ttk.Label(frame, image=thumb, cursor="hand2")
             lbl.image = thumb
-            lbl.pack(pady=2)
+            lbl.pack(pady=(2, 4))
 
             ToolTip(lbl, text=item.name)
 
-            # שם הקובץ, מוגבל לשורה אחת עם … אם ארוך מדי
+            # שם הקובץ - טקסט שמתקפל במידת הצורך (wraplength) מיושר למרכז
             name = item.name
-            if len(name) > 12:
-                name = name[:10] + "…"
-            name_lbl = ttk.Label(frame, text=name, wraplength=cell_size-10, justify="center")
-            name_lbl.pack(side=tk.BOTTOM, pady=2)
+            if len(name) > 18:
+                name = name[:15] + "…"
+            name_lbl = ttk.Label(
+                frame, 
+                text=name, 
+                wraplength=cell_width - 10, 
+                justify="center",
+                font=("Segoe UI", 9)
+            )
+            name_lbl.pack(side=tk.TOP)
 
-            # hover effect (חוצה בין סגנונות קל)
-            frame.bind("<Enter>", lambda e, f=frame: f.configure(relief=tk.SOLID, borderwidth=2))
-            frame.bind("<Leave>", lambda e, f=frame: f.configure(relief=tk.RIDGE, borderwidth=1))
+            # אפקט Hover עדין מאוד בלבד (רק בעת מעבר עכבר)
+            def on_enter(e, f=frame):
+                f.configure(style="Card.TFrame")  # במידה ויש סגנון, או השארת מראה נקי
 
+            frame.bind("<Enter>", lambda e, f=frame: f.configure(relief=tk.FLAT))
+            
             self.preview_images.append(thumb)
 
-        # הגדרת משקל לכל עמודה כדי למלא את השורה
+        # הגדרת משקל אחיד לעמודות כדי למרכז/לרווח אותן
         for c in range(cols):
             self.inner_frame.columnconfigure(c, weight=1)
 
         # עדכון אזור הגלילה
         self.canvas.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-    def _on_canvas_resize(self, event=None):
-        """מתאים את רוחב ה-inner_frame לגודל הקנבס ומרענן"""
-        try:
-            self.canvas.itemconfig(self.canvas_window, width=self.canvas.winfo_width())
-        except:
-            pass
-
-        # ביטול הטיימר הקודם רק אם באמת קיים
-        if hasattr(self, "_resize_after_id"):
-            try:
-                self.root.after_cancel(self._resize_after_id)
-            except:
-                pass
-
-        # הפעלת טיימר חדש לעדכון
-        self._resize_after_id = self.root.after(300, self.refresh_preview)
 
     # ------------------ Watchdog ------------------
     def start_watchdog(self):
