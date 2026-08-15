@@ -56,6 +56,15 @@ def compute_file_hash(path: Path, chunk_size=8*1024*1024) -> str:
         return ""
 
 def move_file(src: Path, dst: Path, dry_run=False) -> Tuple[Path, bool]:
+    try:
+        if src.resolve() == dst.resolve():
+            # Already exactly where it needs to be (e.g. a duplicate
+            # re-scanned on a later run) -- nothing to do, and treating
+            # this as "needs a unique name" would just rename it to
+            # "(1)", "(2)"... on every subsequent run.
+            return dst, False
+    except Exception:
+        pass
     final_dst = unique_target_path(dst)
     if dry_run:
         logger.debug("[DRY-RUN] %s -> %s", src, final_dst)
@@ -68,12 +77,25 @@ def move_file(src: Path, dst: Path, dry_run=False) -> Tuple[Path, bool]:
 def _should_skip(path: Path, root_dir: Path, dest_root: Path, include_hidden: bool, exclude_patterns: Optional[List[str]] = None) -> bool:
     if not include_hidden and any(part.startswith(".") for part in path.parts):
         return True
-    for cat in FILE_CATEGORIES.keys():
+
+    # Skip anything already sitting inside a category folder (including
+    # "Others" and "Duplicates") so re-running Sort on an already-sorted
+    # folder doesn't re-shuffle, duplicate-suffix ("(1)", "(2)"...), or
+    # nest those files deeper each time.
+    protected_dirs = list(FILE_CATEGORIES.keys()) + [UNKNOWN_CATEGORY, "Duplicates"]
+
+    for cat in protected_dirs:
         try:
             if path.is_relative_to(dest_root / cat):
                 return True
         except Exception:
             pass
+
+    # Never treat the organizer's own bookkeeping files as sortable
+    # content.
+    if path.name in (HISTORY_FILE, "duplicates_report.json"):
+        return True
+
     if exclude_patterns:
         for pat in exclude_patterns:
             if path.match(pat):
@@ -179,6 +201,10 @@ def sort_directory(
         for p in dest_root.rglob("*"):
             if not p.is_file():
                 continue
+            if p.name in (HISTORY_FILE, "duplicates_report.json"):
+                continue
+            if not include_hidden and any(part.startswith(".") for part in p.parts):
+                continue
             if suffix_filter and p.suffix.lower() not in [s.lower() for s in suffix_filter]:
                 continue
             try:
@@ -213,6 +239,16 @@ def sort_directory(
                             if parts and parts[0].lower() == category.lower():
                                 rel = Path(*parts[1:])
                                 dst = duplicates_dir / rel
+                            else:
+                                # dup is not (yet) inside its category
+                                # folder -- fall back to a flat move
+                                # into Duplicates/<category>/<name>.
+                                # NOTE: previously `dst` was left
+                                # unset here, silently reusing a
+                                # stale path from an earlier loop
+                                # iteration and moving files to the
+                                # wrong destination.
+                                dst = duplicates_dir / dup.name
                         except Exception:
                             dst = duplicates_dir / dup.name
                     else:
